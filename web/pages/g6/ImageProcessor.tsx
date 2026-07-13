@@ -92,23 +92,25 @@ export default function ImageProcessor() {
                 </BlockStack>
               )}
 
-              <Box padding="400" background="bg-surface-secondary" borderRadius="100" style={{ maxHeight: '400px', overflowY: 'auto', fontFamily: 'monospace' }}>
-                <BlockStack gap="100">
-                  {logs.map(log => (
-                    <div key={log.id} style={{ color: log.type === 'error' ? 'red' : log.type === 'success' ? 'green' : 'inherit' }}>
-                      {log.text}
-                    </div>
-                  ))}
-                  <div ref={logEndRef} />
-                </BlockStack>
+              <Box padding="400" background="bg-surface-secondary" borderRadius="100">
+                <div style={{ maxHeight: '400px', overflowY: 'auto', fontFamily: 'monospace' }}>
+                  <BlockStack gap="100">
+                    {logs.map(log => (
+                      <div key={log.id} style={{ color: log.type === 'error' ? 'red' : log.type === 'success' ? 'green' : 'inherit' }}>
+                        {log.text}
+                      </div>
+                    ))}
+                    <div ref={logEndRef} />
+                  </BlockStack>
+                </div>
               </Box>
 
               {!isRunning && total > 0 && (
                 <BlockStack gap="200">
                   <Text as="h3" variant="headingSm">Özet</Text>
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <Badge tone="success">Başarılı: {summary.success}</Badge>
-                    <Badge tone="critical">Hatalı: {summary.error}</Badge>
+                    <Badge tone="success">{`Başarılı: ${summary.success}`}</Badge>
+                    <Badge tone="critical">{`Hatalı: ${summary.error}`}</Badge>
                   </div>
                 </BlockStack>
               )}

@@ -47,7 +47,7 @@ export const shopify = shopifyApp({
     apiSecretKey: process.env.SHOPIFY_API_SECRET!,
     scopes:    process.env.SCOPES!.split(','),
     hostName:  process.env.HOST!.replace(/https?:\/\//, ''),
-    apiVersion: LATEST_API_VERSION,
+    apiVersion: LATEST_API_VERSION as any,
   },
   auth: {
     path:         '/api/auth',
