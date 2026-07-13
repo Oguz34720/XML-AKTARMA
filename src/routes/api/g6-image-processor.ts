@@ -133,141 +133,156 @@ async function processImage(inputPath: string, outputPath: string) {
     .toFile(outputPath);
 }
 
-router.get('/run', async (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
+interface JobState {
+    jobId: string;
+    total: number;
+    current: number;
+    success: number;
+    errorCount: number;
+    logs: { id: number; text: string; type: 'success' | 'error' | 'info' }[];
+    done: boolean;
+}
 
-    const sendEvent = (data: any) => {
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
+const jobs = new Map<string, JobState>();
+
+router.post('/start', async (req, res) => {
+    const session = res.locals.shopify.session;
+    const limitCount = req.query.limit ? parseInt(req.query.limit as string) : Infinity;
+    
+    // @ts-ignore
+    const jobId = Date.now().toString() + Math.random().toString(36).substring(7);
+    const jobState: JobState = {
+        jobId,
+        total: limitCount !== Infinity ? limitCount : 0,
+        current: 0,
+        success: 0,
+        errorCount: 0,
+        logs: [],
+        done: false
     };
+    jobs.set(jobId, jobState);
 
-    try {
-        const session = res.locals.shopify.session;
-        let limitCount = req.query.limit ? parseInt(req.query.limit as string) : Infinity;
-        let processedProducts = 0;
-        let successCount = 0;
-        let errorCount = 0;
-
-        let hasNextPage = true;
-        let cursor: string | null = null;
+    // Run async
+    (async () => {
+        const addLog = (text: string, type: 'success' | 'error' | 'info') => {
+            jobState.logs.push({ id: Date.now() + Math.random(), text, type });
+        };
         
-        // Count total for progress (we can just say limitCount or fetch count, for now if limit isn't set, we won't know total precisely unless we count. If limit is set, use limit)
-        const totalProducts = limitCount !== Infinity ? limitCount : 0; 
-        
-        sendEvent({ type: 'START', total: totalProducts });
+        try {
+            let processedProducts = 0;
+            let hasNextPage = true;
+            let cursor: string | null = null;
+            
+            addLog(`Started processing ${jobState.total === 0 ? 'all' : jobState.total} products.`, 'info');
 
-        const tmpDir = path.join(__dirname, '..', '..', '..', 'tmp');
-        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+            const tmpDir = path.join(__dirname, '..', '..', '..', 'tmp');
+            if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-        while (hasNextPage && processedProducts < limitCount) {
-            const result = await shopifyGQL(session, getProductsQuery, { cursor });
-            const productsData = result?.products;
-            if (!productsData) break;
+            while (hasNextPage && processedProducts < limitCount) {
+                const result = await shopifyGQL(session, getProductsQuery, { cursor });
+                const productsData = result?.products;
+                if (!productsData) break;
 
-            const edges = productsData.edges;
-            hasNextPage = productsData.pageInfo.hasNextPage;
-            cursor = productsData.pageInfo.endCursor;
+                const edges = productsData.edges;
+                hasNextPage = productsData.pageInfo.hasNextPage;
+                cursor = productsData.pageInfo.endCursor;
 
-            for (const edge of edges) {
-                if (processedProducts >= limitCount) break;
-                processedProducts++;
-                
-                const product = edge.node;
-                const medias = product.media.edges;
-
-                if (medias.length === 0) {
-                    sendEvent({ type: 'INFO', message: `Skipping ${product.title} (No media)` });
-                    continue;
-                }
-
-                for (let m = 0; m < medias.length; m++) {
-                    const mediaNode = medias[m].node;
-                    if (!mediaNode.image || !mediaNode.image.url) continue;
-
-                    const originalUrl = mediaNode.image.url;
-                    const mediaId = mediaNode.id;
+                for (const edge of edges) {
+                    if (processedProducts >= limitCount) break;
+                    processedProducts++;
                     
-                    const originalPath = path.join(tmpDir, `orig_${Date.now()}.jpg`);
-                    const processedPath = path.join(tmpDir, `proc_${Date.now()}.webp`);
+                    const product = edge.node;
+                    const medias = product.media.edges;
 
-                    try {
-                        const dlRes = await axios.get(originalUrl, { responseType: 'arraybuffer' });
-                        fs.writeFileSync(originalPath, dlRes.data);
+                    if (medias.length === 0) {
+                        addLog(`Skipping ${product.title} (No media)`, 'info');
+                        continue;
+                    }
 
-                        await processImage(originalPath, processedPath);
+                    for (let m = 0; m < medias.length; m++) {
+                        const mediaNode = medias[m].node;
+                        if (!mediaNode.image || !mediaNode.image.url) continue;
 
-                        const fileSize = fs.statSync(processedPath).size.toString();
+                        const originalUrl = mediaNode.image.url;
+                        const mediaId = mediaNode.id;
                         
-                        const stagedRes = await shopifyGQL(session, stagedUploadsCreateMutation, {
-                            input: [{
-                                filename: "ai_processed_image.webp",
-                                resource: "IMAGE",
-                                httpMethod: "POST",
-                                fileSize: fileSize,
-                                mimeType: "image/webp"
-                            }]
-                        });
+                        const originalPath = path.join(tmpDir, `orig_${Date.now()}.jpg`);
+                        const processedPath = path.join(tmpDir, `proc_${Date.now()}.webp`);
 
-                        if (stagedRes.stagedUploadsCreate.userErrors.length > 0) {
-                            throw new Error("Staged Upload Error: " + JSON.stringify(stagedRes.stagedUploadsCreate.userErrors));
+                        try {
+                            const dlRes = await axios.get(originalUrl, { responseType: 'arraybuffer' });
+                            fs.writeFileSync(originalPath, dlRes.data);
+
+                            await processImage(originalPath, processedPath);
+
+                            const fileSize = fs.statSync(processedPath).size.toString();
+                            
+                            const stagedRes = await shopifyGQL(session, stagedUploadsCreateMutation, {
+                                input: [{
+                                    filename: "ai_processed_image.webp",
+                                    resource: "IMAGE",
+                                    httpMethod: "POST",
+                                    fileSize: fileSize,
+                                    mimeType: "image/webp"
+                                }]
+                            });
+
+                            if (stagedRes.stagedUploadsCreate.userErrors.length > 0) {
+                                throw new Error("Staged Upload Error: " + JSON.stringify(stagedRes.stagedUploadsCreate.userErrors));
+                            }
+
+                            const target = stagedRes.stagedUploadsCreate.stagedTargets[0];
+                            await uploadToStagedUrl(target.url, target.parameters, processedPath);
+
+                            const createMediaRes = await shopifyGQL(session, productCreateMediaMutation, {
+                                productId: product.id,
+                                media: [{
+                                    originalSource: target.resourceUrl,
+                                    mediaContentType: "IMAGE"
+                                }]
+                            });
+
+                            if (createMediaRes.productCreateMedia.mediaUserErrors.length > 0) {
+                                throw new Error("Create Media Error: " + JSON.stringify(createMediaRes.productCreateMedia.mediaUserErrors));
+                            }
+
+                            await shopifyGQL(session, productDeleteMediaMutation, {
+                                productId: product.id,
+                                mediaIds: [mediaId]
+                            });
+
+                            jobState.success++;
+                            jobState.current = processedProducts;
+                            addLog(`[${processedProducts}/${jobState.total}] ✅ ${product.title}`, 'success');
+
+                        } catch (err: any) {
+                            jobState.errorCount++;
+                            jobState.current = processedProducts;
+                            addLog(`[${processedProducts}/${jobState.total}] ❌ ${product.title} - ${err.message}`, 'error');
+                        } finally {
+                            if (fs.existsSync(originalPath)) fs.unlinkSync(originalPath);
+                            if (fs.existsSync(processedPath)) fs.unlinkSync(processedPath);
                         }
-
-                        const target = stagedRes.stagedUploadsCreate.stagedTargets[0];
-                        await uploadToStagedUrl(target.url, target.parameters, processedPath);
-
-                        const createMediaRes = await shopifyGQL(session, productCreateMediaMutation, {
-                            productId: product.id,
-                            media: [{
-                                originalSource: target.resourceUrl,
-                                mediaContentType: "IMAGE"
-                            }]
-                        });
-
-                        if (createMediaRes.productCreateMedia.mediaUserErrors.length > 0) {
-                            throw new Error("Create Media Error: " + JSON.stringify(createMediaRes.productCreateMedia.mediaUserErrors));
-                        }
-
-                        const delRes = await shopifyGQL(session, productDeleteMediaMutation, {
-                            productId: product.id,
-                            mediaIds: [mediaId]
-                        });
-
-                        successCount++;
-                        sendEvent({ 
-                            type: 'PROGRESS', 
-                            current: processedProducts, 
-                            total: totalProducts,
-                            status: 'success', 
-                            productName: product.title 
-                        });
-
-                    } catch (err: any) {
-                        errorCount++;
-                        sendEvent({ 
-                            type: 'PROGRESS', 
-                            current: processedProducts, 
-                            total: totalProducts,
-                            status: 'error', 
-                            productName: product.title,
-                            error: err.message 
-                        });
-                    } finally {
-                        if (fs.existsSync(originalPath)) fs.unlinkSync(originalPath);
-                        if (fs.existsSync(processedPath)) fs.unlinkSync(processedPath);
                     }
                 }
             }
+            addLog(`Completed! ${jobState.success} successful, ${jobState.errorCount} failed.`, 'info');
+        } catch (error: any) {
+            jobState.logs.push({ id: Date.now(), text: `Critical error: ${error.message}`, type: 'error' });
+        } finally {
+            jobState.done = true;
         }
-        
-        sendEvent({ type: 'DONE', success: successCount, error: errorCount });
-        res.end();
+    })();
 
-    } catch (error: any) {
-        sendEvent({ type: 'INFO', message: `Critical error: ${error.message}` });
-        res.end();
+    res.json({ jobId });
+});
+
+router.get('/status/:jobId', (req, res) => {
+    const job = jobs.get(req.params.jobId);
+    if (!job) {
+        return res.status(404).json({ error: "Job not found" });
     }
+    res.json(job);
 });
 
 export default router;

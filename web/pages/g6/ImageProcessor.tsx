@@ -10,7 +10,7 @@ export default function ImageProcessor() {
   const [summary, setSummary] = useState({ success: 0, error: 0 });
   const logEndRef = useRef<HTMLDivElement>(null);
 
-  const startProcess = () => {
+  const startProcess = async () => {
     setIsRunning(true);
     setLogs([]);
     setProgress(0);
@@ -20,40 +20,42 @@ export default function ImageProcessor() {
     const queryParams = new URLSearchParams();
     if (limit) queryParams.append('limit', limit);
 
-    const eventSource = new EventSource(`/api/image-processor/run?${queryParams.toString()}`);
-
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.type === 'START') {
-        setTotal(data.total);
-        addLog(`Started processing ${data.total} products.`, 'info');
-      } else if (data.type === 'PROGRESS') {
-        setProgress(data.current);
-        const logType = data.status === 'success' ? 'success' : 'error';
-        const prefix = data.status === 'success' ? '✅' : '❌';
-        addLog(`[${data.current}/${data.total}] ${prefix} ${data.productName} ${data.error ? `- ${data.error}` : ''}`, logType);
-        
-        if (data.status === 'success') {
-          setSummary(prev => ({ ...prev, success: prev.success + 1 }));
-        } else {
-          setSummary(prev => ({ ...prev, error: prev.error + 1 }));
-        }
-      } else if (data.type === 'DONE') {
-        addLog(`Completed! ${data.success} successful, ${data.error} failed.`, 'info');
-        setIsRunning(false);
-        eventSource.close();
-      } else if (data.type === 'INFO') {
-         addLog(`ℹ️ ${data.message}`, 'info');
+    try {
+      const res = await fetch(`/api/image-processor/start?${queryParams.toString()}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.jobId) {
+        pollStatus(data.jobId);
+      } else {
+        throw new Error("No jobId returned");
       }
-    };
-
-    eventSource.onerror = (err) => {
-      console.error("SSE Error:", err);
-      addLog("❌ Connection lost or error occurred.", "error");
+    } catch (err) {
+      console.error(err);
+      addLog("❌ Failed to start job.", "error");
       setIsRunning(false);
-      eventSource.close();
-    };
+    }
+  };
+
+  const pollStatus = async (jobId: string) => {
+    try {
+      const res = await fetch(`/api/image-processor/status/${jobId}`);
+      if (!res.ok) throw new Error("Job not found or server error");
+      const job = await res.json();
+      
+      setTotal(job.total);
+      setProgress(job.current);
+      setSummary({ success: job.success, error: job.errorCount });
+      setLogs(job.logs);
+
+      if (job.done) {
+        setIsRunning(false);
+      } else {
+        setTimeout(() => pollStatus(jobId), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      addLog("❌ Polling failed or connection lost.", "error");
+      setIsRunning(false);
+    }
   };
 
   const addLog = (text: string, type: 'success' | 'error' | 'info') => {
