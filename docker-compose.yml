@@ -1,0 +1,48 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: vw-classic-shopify-app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - SHOPIFY_API_KEY=${SHOPIFY_API_KEY}
+      - SHOPIFY_API_SECRET=${SHOPIFY_API_SECRET}
+      - SCOPES=${SCOPES}
+      - HOST=${HOST}
+      - SHOPIFY_SHOP=${SHOPIFY_SHOP}
+      - DATABASE_URL=file:/app/data/prod.db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - STORE_CURRENCY=${STORE_CURRENCY:-USD}
+      - MANUFACTURER_MID_CODE=${MANUFACTURER_MID_CODE:-TREOZETOIST34755}
+      - SHOPIFY_WEBHOOK_SECRET=${SHOPIFY_WEBHOOK_SECRET}
+      - GRAPHQL_THROTTLE_MS=${GRAPHQL_THROTTLE_MS:-500}
+    volumes:
+      - sqlite_data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      # Coolify / Traefik labels (adjust domain as needed)
+      - "traefik.enable=true"
+      - "traefik.http.routers.vwclassic.rule=Host(`${HOST}`)"
+      - "traefik.http.routers.vwclassic.entrypoints=websecure"
+      - "traefik.http.routers.vwclassic.tls.certresolver=letsencrypt"
+
+volumes:
+  sqlite_data:
+    driver: local
+
+# ============================================================
+# Development override: docker-compose.dev.yml
+# Run with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ============================================================

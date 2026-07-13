@@ -1,0 +1,65 @@
+{
+  "name": "vw-classic-club-erp",
+  "version": "1.0.0",
+  "description": "VW Classic Club ERP - Full Stack App",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "predev": "npm install --prefix web && prisma generate && prisma db push",
+    "dev": "shopify app dev",
+    "dev:web": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@google/genai": "latest",
+    "@imgly/background-removal-node": "^1.4.5",
+    "@prisma/client": "^5.22.0",
+    "@shopify/polaris": "^13.0.0",
+    "@shopify/shopify-api": "^11.0.0",
+    "@shopify/shopify-app-express": "^3.0.0",
+    "@shopify/shopify-app-session-storage-prisma": "^5.1.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "axios": "^1.18.1",
+    "compression": "^1.7.5",
+    "cors": "^2.8.6",
+    "csv-parse": "^7.0.1",
+    "csv-parser": "^3.2.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
+    "form-data": "^4.0.6",
+    "helmet": "^8.2.0",
+    "i18next": "^23.11.5",
+    "morgan": "^1.10.0",
+    "node-cron": "^4.6.0",
+    "prisma": "^5.22.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^14.1.2",
+    "sharp": "^0.32.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  },
+  "devDependencies": {
+    "@shopify/app": "^3.58.2",
+    "@shopify/cli": "^3.58.2",
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^20.12.12",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0"
+  }
+}

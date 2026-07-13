@@ -1,0 +1,11 @@
+node_modules/
+.git/
+.env
+dist/
+client/node_modules/
+client/dist/
+prisma/*.db
+prisma/*.db-journal
+logs/
+coverage/
+*.log

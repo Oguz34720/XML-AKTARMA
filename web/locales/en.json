@@ -1,0 +1,37 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "preview": "Preview",
+    "approve": "Approve & Save",
+    "actions": "Actions",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success"
+  },
+  "modules": {
+    "g1": {
+      "title": "Product Management"
+    },
+    "g2": {
+      "title": "Stock & Price"
+    },
+    "g3": {
+      "title": "Shipping & Customs"
+    },
+    "g4": {
+      "title": "VW Classic Specific"
+    },
+    "g5": {
+      "title": "Analytics"
+    },
+    "g6": {
+      "title": "Content"
+    },
+    "g7": {
+      "title": "Technical"
+    }
+  }
+}

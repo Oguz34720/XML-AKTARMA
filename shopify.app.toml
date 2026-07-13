@@ -1,0 +1,27 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "752cd12614b19f96c18bc26880f08d92"
+name = "XML AKTARMA"
+application_url = "https://example.com"
+embedded = true
+handle = "xml-aktarma-2"
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "vw-classic-club.myshopify.com"
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/api/webhooks"
+  topics = [ "app/uninstalled", "orders/create", "products/update" ]
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_price_rules,write_price_rules,read_discounts,write_discounts,write_draft_orders,read_draft_orders,read_files,write_files,write_inventory,read_inventory,read_locales,write_locations,read_locations,read_metaobject_definitions,write_metaobject_definitions,read_metaobjects,write_metaobjects,read_online_store_navigation,write_online_store_navigation,read_orders,write_orders,read_products,write_products,read_publications,write_publications,read_shipping,write_shipping,read_content,write_content,read_translations,write_translations"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [ "https://example.com/api/auth/callback" ]

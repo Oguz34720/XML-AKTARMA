@@ -1,0 +1,37 @@
+{
+  "common": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "preview": "Önizle",
+    "approve": "Onayla ve Kaydet",
+    "actions": "İşlemler",
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu",
+    "success": "İşlem başarılı"
+  },
+  "modules": {
+    "g1": {
+      "title": "Ürün Yönetimi"
+    },
+    "g2": {
+      "title": "Stok & Fiyat"
+    },
+    "g3": {
+      "title": "Kargo & Gümrük"
+    },
+    "g4": {
+      "title": "VW Classic Özel"
+    },
+    "g5": {
+      "title": "Analitik"
+    },
+    "g6": {
+      "title": "İçerik"
+    },
+    "g7": {
+      "title": "Teknik"
+    }
+  }
+}

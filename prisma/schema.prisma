@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id          String    @id
+  shop        String
+  state       String
+  isOnline    Boolean   @default(false)
+  scope       String?
+  expires     DateTime?
+  accessToken String
+  userId      BigInt?
+  firstName   String?
+  lastName    String?
+  email       String?
+  accountOwner Boolean  @default(false)
+  locale      String?
+  collaborator Boolean? @default(false)
+  emailVerified Boolean? @default(false)
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  shop      String
+  module    String
+  action    String   // "preview" | "commit" | "rollback"
+  payload   String   // JSON stringified
+  createdAt DateTime @default(now())
+}
+
+model Snapshot {
+  id        Int      @id @default(autoincrement())
+  shop      String
+  productId String
+  module    String
+  data      String   // JSON stringified — original state before commit
+  createdAt DateTime @default(now())
+}
+
+model Cache {
+  id        Int      @id @default(autoincrement())
+  shop      String
+  key       String
+  value     String
+  expiresAt DateTime
+  @@unique([shop, key])
+}
+
+model OrderCache {
+  id          Int      @id @default(autoincrement())
+  orderId     String   @unique
+  shop        String
+  totalPrice  String
+  lineItems   String   // JSON stringified
+  createdAt   DateTime
+  syncedAt    DateTime @default(now())
+}
+
+model StoreConfig {
+  id             Int      @id @default(autoincrement())
+  shop           String   @unique
+  ticimaxFtpHost String?
+  ticimaxFtpUser String?
+  ticimaxFtpPass String?  // Encrypted
+  fedexClientId  String?
+  fedexSecret    String?  // Encrypted
+  fedexAccount   String?
+  updatedAt      DateTime @default(now())
+}
+
+
