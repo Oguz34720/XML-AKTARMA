@@ -14,7 +14,7 @@
     "predev": "npm install --prefix web && prisma generate && prisma db push",
     "dev": "shopify app dev",
     "dev:web": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "prisma generate && prisma migrate deploy && npm run build --prefix web && tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio"
