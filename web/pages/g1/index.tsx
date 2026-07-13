@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { Page, Card, Button, DataTable, Layout, Tabs, Text, BlockStack, TextField, Banner } from '@shopify/polaris';
 import { useTranslation } from 'react-i18next';
+import { useAuthenticatedFetch } from '../../hooks/useAuthenticatedFetch';
 
 // Reusable HITL Component
 function HITLModule({ title, endpoint, defaultInput }: { title: string, endpoint: string, defaultInput: any }) {
   const { t } = useTranslation();
+  const fetch = useAuthenticatedFetch();
   const [inputData, setInputData] = useState(JSON.stringify(defaultInput, null, 2));
   const [previews, setPreviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);

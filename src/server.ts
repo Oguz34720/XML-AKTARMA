@@ -11,6 +11,7 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { shopifyApp } from '@shopify/shopify-app-express';
+import { getJobStatus, createJob, updateJob } from './lib/jobManager.js';
 import { LATEST_API_VERSION } from '@shopify/shopify-api';
 import { PrismaSessionStorage } from '@shopify/shopify-app-session-storage-prisma';
 import { PrismaClient } from '@prisma/client';
@@ -89,6 +90,50 @@ app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 app.use('/health', healthRouter);
+
+// Job Polling Route
+app.get('/api/jobs/:jobId', (req, res) => {
+    const job = getJobStatus(req.params.jobId);
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    res.json(job);
+});
+
+// HITL global interceptor: convert all long-running POST tasks to polling jobs
+app.use('/api', (req, res, next) => {
+    // Intercept G1-G7 POST requests but exclude ones that already handle polling or streaming
+    if (req.method === 'POST' && req.path.match(/^\/g[1-7]\//)) {
+        const jobId = Date.now().toString() + Math.random().toString(36).substring(7);
+        createJob(jobId);
+
+        const originalJson = res.json.bind(res);
+        let hasError = false;
+
+        res.status = function(code) {
+            if (code >= 400) hasError = true;
+            this.statusCode = code;
+            return this;
+        };
+
+        const noop = function() { return this; };
+        res.setHeader = noop;
+        res.set = noop;
+        res.header = noop;
+
+        res.json = function(data) {
+            updateJob(jobId, data, hasError);
+            return this;
+        };
+
+        originalJson({ jobId });
+        
+        process.nextTick(() => {
+            try { next(); } 
+            catch (err: any) { updateJob(jobId, err.message, true); }
+        });
+        return;
+    }
+    next();
+});
 
 app.get(shopify.config.auth.path, shopify.auth.begin());
 app.get(
